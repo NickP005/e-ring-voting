@@ -3,8 +3,8 @@ import websockets
 import messageHandler
 
 import connections_h
-clients_connected = set()
 
+clients_connected = set()
 
 
 async def register(websocket):
@@ -13,10 +13,12 @@ async def register(websocket):
     clients_connected.add(websocket)
     await connections_h.saveNewNodeIP(ip)
 
+
 async def unregister(websocket):
     ip, port = websocket.remote_address
     print("Client {} disconnected".format(ip))
     clients_connected.remove(websocket)
+
 
 async def new_connection(websocket, path):
     # register(websocket) sends user_event() to websocket
@@ -24,7 +26,7 @@ async def new_connection(websocket, path):
     loop = asyncio.get_event_loop()
     try:
         async for message in websocket:
-            #geniale
+            # geniale
             stripped = message.replace('\n', '').replace('\t', '')
             if len(message) > 22:
                 stipped = stripped[:22]
@@ -39,6 +41,7 @@ async def new_connection(websocket, path):
     finally:
         print("Client disconnnected")
         await unregister(websocket)
-        #await notify_users()
+        # await notify_users()
+
 
 start_server = websockets.serve(new_connection, '192.168.1.233', 25570)
