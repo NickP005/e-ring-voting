@@ -92,3 +92,4 @@ async def askForFriends():
     random_nonce = ''.join(random.choice("0123456789") for i in range(8)) # Te l'ho riscritto chiamo la reda
     message_obj = {"aim":"discover_nodes", "nonce":random_nonce}
     message = json.dumps(message_obj)
+    messageHandler.broadcast_message(message, random_nonce)
