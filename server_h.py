@@ -9,14 +9,14 @@ clients_connected = set()
 
 async def register(websocket):
     ip, port = websocket.remote_address
-    print("New client connected {}".format(ip))
+    print(f"New client connected {ip}")
     clients_connected.add(websocket)
     await connections_h.saveNewNodeIP(ip)
 
 
 async def unregister(websocket):
     ip, port = websocket.remote_address
-    print("Client {} disconnected".format(ip))
+    print(f"Client {ip} disconnected")
     clients_connected.remove(websocket)
 
 
@@ -29,7 +29,7 @@ async def new_connection(websocket, path):
             # geniale
             stripped = message.replace('\n', '').replace('\t', '')
             if len(message) > 22:
-                stipped = stripped[:22]
+                stripped = stripped[:22]
 
             await messageHandler.handleIncomingMessage(message, websocket)
     except ConnectionResetError as error:

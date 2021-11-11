@@ -63,7 +63,6 @@ async def stayNotAlone(min_connections=2):
 
 
 async def saveNewNodeIP(ip):
-    json_nodes = None
     async with async_open("data/known_nodes.json", 'r') as afp:
         json_nodes = json.loads(await afp.read())
     async with async_open("data/known_nodes.json", 'w+') as afp:

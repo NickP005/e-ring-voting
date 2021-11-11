@@ -39,9 +39,8 @@ async def connect_to(ip):
 
 async def receive_message_callback(message, websocket):
     ip, port = websocket.remote_address
-    stripped = message.replace('\n', '')
-    stripped = stripped.replace('\t', '')
-    if (len(message) > 22):
+    stripped = message.replace('\n', '').replace('\t', '')
+    if len(message) > 22:
         print("New message from server " + ip + ": " + stripped[:22] + " [...]")
     else:
         print("New message from server " + ip + ": " + stripped)
