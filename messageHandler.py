@@ -1,12 +1,10 @@
-import websockets
-import asyncio
-import json, random
-from aiofile import async_open
-
+import json
+import random
+from file import json_files
 import W_error
+import client_h
 import connections_h
 import server_h
-import client_h
 
 nonce_list = []
 nonce_dictionary = {}  # key: nonce, value: [ip]
@@ -82,19 +80,20 @@ async def aim_discoverNodes(websocket):
     ip, port = websocket.remote_address
     nodes_to_send = []
     # json_nodes = None
-    async with async_open("data/known_nodes.json", 'r') as afp:
-        json_nodes = json.loads(await afp.read())
-        optimal_iterations = 5
-        all_nodes = []
-        for node_data in json_nodes["nodes"].values():
-            if node_data["attempts"] == 5:
-                if ip != node_data["ip"]:
-                    all_nodes.append(node_data["ip"])
-        i = 0
-        while i < optimal_iterations and i < len(all_nodes):
-            random_node = random.choice(all_nodes)
-            all_nodes.remove(random_node)
-            nodes_to_send.append(random_node)
+
+    json_nodes = json_files["data/known_nodes.json"]
+    optimal_iterations = 5
+    all_nodes = []
+    for node_data in json_nodes["nodes"].values():
+        if node_data["attempts"] == 5:
+            if ip != node_data["ip"]:
+                all_nodes.append(node_data["ip"])
+    i = 0
+    while i < optimal_iterations and i < len(all_nodes):
+        random_node = random.choice(all_nodes)
+        all_nodes.remove(random_node)
+        nodes_to_send.append(random_node)
+
     random_nonce = ''.join(random.choice("0123456789") for i in range(8))
     message_obj = {"aim": "new_node", "nonce": random_nonce, "nodes": nodes_to_send}
     message = json.dumps(message_obj)

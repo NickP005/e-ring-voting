@@ -1,8 +1,7 @@
 # https://websockets.readthedocs.io/en/3.0/intro.html
 
 import asyncio
-import binascii
-
+import file
 import server_h
 import client_h
 import connections_h
@@ -19,8 +18,10 @@ async def my_super_loop():
 async def start_all():
     print("starting voting blockchain node v0.1")
     print("starting websocket server..")
+    asyncio.ensure_future(file.load_dict())
     asyncio.ensure_future(server_h.start_server)
     asyncio.ensure_future(my_super_loop())
+    asyncio.ensure_future(file.write_json())
     asyncio.ensure_future(connections_h.askForFriends())
 
 

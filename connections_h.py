@@ -1,10 +1,9 @@
-import os, json, random
-import asyncio
-from aiofile import async_open
-
-import server_h
+import json
+import random
+from file import json_files
 import client_h
 import messageHandler
+import server_h
 
 known_nodes_obj = None
 
@@ -16,10 +15,7 @@ async def loadKnownNodes():
     return_var = False
     data = None
     try:
-        with open('data/net_nodes.json', 'r') as json_file:
-            data = json.load(json_file)
-
-            json_file.close()
+        data = json_files["data/net_nodes.json"]
     finally:
         with open('data/net_nodes.json', 'w') as json_file:
             json.dump(data, json_file, indent=4)
@@ -27,7 +23,7 @@ async def loadKnownNodes():
             json_file.close()
             return return_var
 
-
+"""
 async def stayNotAlone(min_connections=2):
     # questo dopo sarà preso da un json
     current_connections = len(server_h.clients_connected) + len(client_h.websocket_connections)
@@ -60,8 +56,42 @@ async def stayNotAlone(min_connections=2):
     async with async_open("data/known_nodes.json", 'w+') as afpp:
         result = json.dumps(json_nodes, indent=4)
         await afpp.write(result)
+"""
 
 
+async def stayNotAlone(min_connections=2):
+    # questo dopo sarà preso da un json
+    current_connections = len(server_h.clients_connected) + len(client_h.websocket_connections)
+    print("Connesso con", current_connections, "nodi")
+    if current_connections >= min_connections:
+        return True
+    json_nodes = None
+    # Ora si controlla su data/net_nodes.json se ci sonon nodi a cui ci si può connettere in piu
+
+    json_nodes = json_files["data/known_nodes.json"]
+    print(json_nodes)
+    print(json_nodes["nodes"])
+    for node_data in json_nodes["nodes"].values():
+        if node_data["attempts"] == 0:
+            continue
+        print("controllo se sono gia connesso con quel nodo")
+        if await client_h.checkConnectionWith(node_data["ip"]):
+            print("sono gia connnesso con", node_data["ip"])
+            continue
+        print("mi connetterò a", node_data["ip"])
+        if await client_h.connect_to(node_data["ip"]):
+            current_connections += 1
+            node_data["attempts"] = 5
+            if current_connections >= min_connections:
+                return True
+            continue
+        # adesso teoricamente dovremmo ridurre attempts di questo nodo di -1
+        print("fallito a connettersi a", node_data["ip"])
+        node_data["attempts"] -= 1
+
+
+
+"""
 async def saveNewNodeIP(ip):
     async with async_open("data/known_nodes.json", 'r') as afp:
         json_nodes = json.loads(await afp.read())
@@ -71,6 +101,13 @@ async def saveNewNodeIP(ip):
         json_nodes["nodes"][ip] = {"ip": ip, "attempts": 5}
         result = json.dumps(json_nodes, indent=4)
         await afp.write(result)
+"""
+
+async def saveNewNodeIP(ip):
+    json_nodes = json_files["data/known_nodes.json"]
+    if ip in json_nodes["nodes"].values():
+        return True
+    json_nodes["nodes"][ip] = {"ip": ip, "attempts": 5}
 
 
 # Asks to all of the connected nodes their node list IPs
