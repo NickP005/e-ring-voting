@@ -1,30 +1,29 @@
 import asyncio
 import websockets
 
-import server_h
-import messageHandler
-import connections_h
+
+from handlers import message, server, connections
 
 websocket_connections = set()
 
 
 async def connect_to(ip):
     websocket = None
-    if await checkConnectionWith(ip):
+    if await check_connection_with(ip):
         print("already connected with this node")
         return True  # true?
     try:
         websocket = await asyncio.wait_for(websockets.connect("ws://" + ip + ":25570"), timeout=5)
         asyncio.create_task(receive_message_callback(await asyncio.wait_for(websocket.recv(), timeout=500), websocket))
         websocket_connections.add(websocket)
-        await connections_h.saveNewNodeIP(ip)
-    except websockets.exceptions.InvalidURI as error:
+        await connections.save_new_node(ip)
+    except websockets.InvalidURI:
         print("Invalid node URL: ", "ws://" + ip + ":25570")
         return False
-    except ConnectionTimeoutError as error:
+    except ConnectionTimeoutError:  # non esiste questa Exception, prova a rivedere
         print("Timeout error with " + ip + ":25570")
         return False
-    except websockets.exceptions.ConnectionClosedOK as error:
+    except websockets.ConnectionClosedOK:
         print("Closed connection with " + ip + ":25570")
         return False
     except Exception as e:
@@ -32,35 +31,23 @@ async def connect_to(ip):
         print(e)
     finally:
         # print(websocket)
-        if (websocket == None):
-            return False
-        return True
+        return websocket is not None
 
 
-async def receive_message_callback(message, websocket):
+async def receive_message_callback(msg, websocket):
     ip, port = websocket.remote_address
-    stripped = message.replace('\n', '').replace('\t', '')
-    if len(message) > 22:
-        print("New message from server " + ip + ": " + stripped[:22] + " [...]")
-    else:
-        print("New message from server " + ip + ": " + stripped)
-    await messageHandler.handleIncomingMessage(message, websocket)
+    stripped = msg.replace('\n', '').replace('\t', '')
+    print(f"New message from serve {ip}: {stripped[:22]} {'[...]' if len(stripped) > 22 else ''}")
+    await message.handle_incoming_message(msg, websocket)
     asyncio.create_task(receive_message_callback(await asyncio.wait_for(websocket.recv(), timeout=500), websocket))
 
 
-async def checkConnectionWith(ip_check):
+async def check_connection_with(ip_check):
     # First check if that IP is already connected to US
     # print("connesso da: ")
-    for websocket in server_h.clients_connected:
+    for websocket in server.clients_connected:
         ip, port = websocket.remote_address
         # print("{} : {}".format(ip, port))
         if ip_check == ip:
             return True
-
-    # print("connesso con: ")
-    for websocket in websocket_connections:
-        ip, port = websocket.remote_address
-        if ip_check == ip:
-            return True
-        # print("{} : {}".format(ip, port))
     return False

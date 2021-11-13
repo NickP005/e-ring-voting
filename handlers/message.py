@@ -1,24 +1,23 @@
 import json
 import random
-from file import json_files
-import W_error
-import client_h
-import connections_h
-import server_h
+from .file import json_files
+from handlers import client, server, connections
+from handlers.exceptions import throw_error, UnknownError, InvalidNonce, InvalidFormat
 
 nonce_list = []
 nonce_dictionary = {}  # key: nonce, value: [ip]
 
 
-async def handleIncomingMessage(message, websocket):
+async def handle_incoming_message(msg, websocket):
     print("message received")
     try:
-        message_dict = json.loads(message)
+        message_dict = json.loads(msg)
         message_aim = message_dict["aim"]
         message_nonce = message_dict["nonce"]
-        await saveNewNonceEntry(message_nonce, websocket)
-        if not await checkNonceUniqness(message_nonce):
-            await W_error.throwError(2, websocket)
+        await save_new_nonce_entry(message_nonce, websocket)
+        if not await is_unique_nonce(message_nonce):
+            # await error.throw_error(2, websocket)
+            await throw_error(InvalidNonce, websocket)
             return
         if message_aim == "new_block":
             print("new block to check")
@@ -27,19 +26,21 @@ async def handleIncomingMessage(message, websocket):
             print("going to check for message")
             await aim_message(message_dict["text"], message_nonce, websocket)
         elif message_aim == "discover_nodes":
-            await aim_discoverNodes(websocket)
+            await aim_discover_nodes(websocket)
         elif message_aim == "new_node":
-            await aim_newNode(message_dict["nodes"], websocket)
+            await aim_new_node(message_dict["nodes"], websocket)
         else:
             print("unknown aim")
-    except Exception as err:
-        await W_error.throwError(1, websocket)
+    except Exception:
+        # await error.throw_error(1, websocket)
+        await throw_error(UnknownError, websocket)
 
 
-async def checkNonceUniqness(nonce):
-    if nonce in nonce_list:
-        return False
-    if len(nonce) != 8 or not nonce.isnumeric():
+async def is_unique_nonce(nonce: str):
+    """
+    Returns True if nonce is unique and valid
+    """
+    if nonce in nonce_list or len(nonce) != 8 or not nonce.isnumeric():
         return False
     if len(nonce_list) > 99:
         del nonce_list[0]
@@ -47,7 +48,7 @@ async def checkNonceUniqness(nonce):
     return True
 
 
-async def saveNewNonceEntry(nonce, websocket):
+async def save_new_nonce_entry(nonce, websocket):
     if len(nonce) != 8 or not nonce.isnumeric():
         return False
     if nonce not in nonce_dictionary:
@@ -65,7 +66,8 @@ async def aim_message(text, nonce, websocket):
     # controlla se il message è una stringa e non abbia caratteri sbagliati es: -/&%$£"!"
     if not isinstance(text, str) or not text.isalnum():
         print("messaggio sbagliato")
-        await W_error.throwError(3, websocket)
+        # await error.throw_error(3, websocket)
+        await throw_error(InvalidFormat, websocket)
         return False
     # formatti il nuovo messaggio in json e chiami la funzione broadcast_message()
     message_cache = {"aim": "message", "text": text, "nonce": nonce}
@@ -74,7 +76,7 @@ async def aim_message(text, nonce, websocket):
     await broadcast_message(json_message, nonce)
 
 
-async def aim_discoverNodes(websocket):
+async def aim_discover_nodes(websocket):
     # Questo websocket ci sta chiedendo che nodi conosce
     # Gli si invia solo i nodi che hanno 5 di attempts
     ip, port = websocket.remote_address
@@ -94,52 +96,52 @@ async def aim_discoverNodes(websocket):
         all_nodes.remove(random_node)
         nodes_to_send.append(random_node)
 
-    random_nonce = ''.join(random.choice("0123456789") for i in range(8))
-    message_obj = {"aim": "new_node", "nonce": random_nonce, "nodes": nodes_to_send}
-    message = json.dumps(message_obj)
-    print("[]->[", ip, "]", message)
-    await websocket.send(message)
+    random_nonce = ''.join(random.choice("0123456789") for _ in range(8))
+    msg_obj = {"aim": "new_node", "nonce": random_nonce, "nodes": nodes_to_send}
+    msg = json.dumps(msg_obj)
+    print("[]->[", ip, "]", msg)
+    await websocket.send(msg)
 
 
-async def aim_newNode(nodes_array, websocket):
+async def aim_new_node(nodes_array, _websocket):
     if not isinstance(nodes_array, list):
         return False
-    impostors = 0
+    impostors = 0  # sus
     for node_ip in nodes_array:
         if impostors == 2:
             return False
-        if not await client_h.connect_to(node_ip):
+        if not await client.connect_to(node_ip):
             impostors += 1
-        await connections_h.saveNewNodeIP(node_ip)
+        await connections.save_new_node(node_ip)
     return True
 
 
-async def broadcast_message(message, nonce):
+async def broadcast_message(msg, nonce):
     """
     Qui si invia a tutte le persone a cui si è connessi un messaggio, quindi si invia ai client e ai server a cui 
     si è connessi il messaggio, ma prima bisogna controllare che si è connessi ad abbastanza persone (impostate su 
     settings.json)
     """
-    await connections_h.stayNotAlone()
+    await connections.stay_not_alone()
 
-    print("Sto per inviare ", message)
+    print("Sto per inviare ", msg)
     nonce_array = nonce_dictionary[nonce]
-    for websocket in server_h.clients_connected:
+    for websocket in server.clients_connected:
         ip, port = websocket.remote_address
         if ip in nonce_array:
             print("questo lo conosco gia")
             # continue
         print("sto per inviare un messaggio a ", ip, ":", port)
-        await websocket.send(message)
+        await websocket.send(msg)
         nonce_array.append(ip)
-    for websocket in client_h.websocket_connections:
+    for websocket in client.websocket_connections:
         ip, port = websocket.remote_address
         if ip in nonce_array:
             print("questo lo conosco gia")
             # continue
-        await websocket.send(message)
+        await websocket.send(msg)
         nonce_array.append(ip)
     nonce_dictionary[nonce] = nonce_array
-    # await asyncio.wait([websocket.send(message) for websocket in server_h.clients_connected])
-    # await asyncio.wait([websocket.send(message) for websocket in client_h.websocket_connections])
+    # await asyncio.wait([websocket.send(message) for websocket in server.clients_connected])
+    # await asyncio.wait([websocket.send(message) for websocket in client.websocket_connections])
     pass
