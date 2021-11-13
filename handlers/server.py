@@ -24,13 +24,12 @@ async def new_connection(websocket, _path):
     asyncio.get_event_loop()
     try:
         async for msg in websocket:
-
             await message.handle_incoming_message(msg, websocket)
     except ConnectionResetError as error:
         print("Connection Reset Error;")
         print(error)
         return
-    except websockets.exceptions.ConnectionClosedError:
+    except websockets.ConnectionClosedError:
         pass
     finally:
         print("Client disconnected")
