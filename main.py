@@ -2,6 +2,7 @@
 
 import asyncio
 from handlers import client, connections, server, file
+from exceptions import *
 
 
 async def my_super_loop():
@@ -20,8 +21,13 @@ async def start_all():
     asyncio.ensure_future(my_super_loop())
     asyncio.ensure_future(file.write_json())
     asyncio.ensure_future(connections.ask_for_friends())
+    await throw_error(UnknownError, "dsa")
 
-asyncio.get_event_loop().run_until_complete(
-    start_all()
-)
-asyncio.get_event_loop().run_forever()
+
+def main():
+    asyncio.get_event_loop().run_until_complete(start_all())
+    asyncio.get_event_loop().run_forever()
+
+
+if __name__ == "__main__":
+    main()
