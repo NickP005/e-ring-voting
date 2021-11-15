@@ -14,7 +14,7 @@ async def load_dict():
     """
     Called when start_all. Loads json_files values.
     """
-    for file_name in json_files.keys():
+    for file_name in json_files:
 
         assert os.path.exists(file_name), f"{file_name} non trovato!"
         assert os.path.getsize(file_name) > 0, f"{file_name} IS EMPTY!!"
