@@ -45,8 +45,8 @@ async def is_unique_nonce(nonce: str):
     if nonce in nonce_list or len(nonce) != 8 or not nonce.isnumeric():
         return False
     if len(nonce_list) > 99:
-        nonce_dictionary.pop(nonce_list[0])
-        nonce_list.pop(0)
+        first = nonce_list.pop(0)
+        nonce_dictionary.pop(first)
         # del nonce_list[0]
     nonce_list.append(nonce)
     return True
