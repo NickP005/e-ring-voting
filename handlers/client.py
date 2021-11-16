@@ -45,7 +45,7 @@ async def receive_message_callback(msg, websocket):
 async def check_connection_with(ip_check):
     # First check if that IP is already connected to US
     # print("connesso da: ")
-    for websocket in server.clients_connected:
+    for websocket in server.clients_connected | websocket_connections:
         ip, port = websocket.remote_address
         # print("{} : {}".format(ip, port))
         if ip_check == ip:

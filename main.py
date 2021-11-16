@@ -21,7 +21,6 @@ async def start_all():
     asyncio.ensure_future(my_super_loop())
     asyncio.ensure_future(file.write_json())
     asyncio.ensure_future(connections.ask_for_friends())
-    await throw_error(UnknownError, "dsa")
 
 
 def main():

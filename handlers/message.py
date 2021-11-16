@@ -1,11 +1,13 @@
 import json
 import random
+from typing import Dict, Any
+
 from .file import json_files
 from handlers import client, server, connections
 from exceptions import *
 
 nonce_list = []
-nonce_dictionary = {}  # key: nonce, value: [ip]
+nonce_dictionary: dict[str, list] = {}  # dictionaries are ordered for python >=3.6
 
 
 async def handle_incoming_message(msg, websocket):
@@ -43,7 +45,9 @@ async def is_unique_nonce(nonce: str):
     if nonce in nonce_list or len(nonce) != 8 or not nonce.isnumeric():
         return False
     if len(nonce_list) > 99:
-        del nonce_list[0]
+        nonce_dictionary.pop(nonce_list[0])
+        nonce_list.pop(0)
+        # del nonce_list[0]
     nonce_list.append(nonce)
     return True
 
@@ -126,22 +130,15 @@ async def broadcast_message(msg, nonce):
 
     print("Sto per inviare ", msg)
     nonce_array = nonce_dictionary[nonce]
-    for websocket in server.clients_connected:
+    for websocket in server.clients_connected | client.websocket_connections:
         ip, port = websocket.remote_address
         if ip in nonce_array:
             print("questo lo conosco gia")
-            # continue
+            continue
         print("sto per inviare un messaggio a ", ip, ":", port)
-        await websocket.send(msg)
-        nonce_array.append(ip)
-    for websocket in client.websocket_connections:
-        ip, port = websocket.remote_address
-        if ip in nonce_array:
-            print("questo lo conosco gia")
-            # continue
         await websocket.send(msg)
         nonce_array.append(ip)
     nonce_dictionary[nonce] = nonce_array
     # await asyncio.wait([websocket.send(message) for websocket in server.clients_connected])
     # await asyncio.wait([websocket.send(message) for websocket in client.websocket_connections])
-    pass
+    # pass
