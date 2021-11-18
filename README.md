@@ -21,6 +21,39 @@ To prepare a vote the manager needs to submit a special transaction.
 In that special transaction the manager needs to specify the public addresses of who can vote, the options that can be voted, a voting message, members per group and a range that specifies how much the voting lasts;
 the range has a start (expressed in block number) and a finish (expressed in a block number).
 The fee of the special transaction is calculated from:
-1 fixed eVote + (members*members_per_group) + 10*range_of_blocks
+1 fixed eVote + (members \* members_per_group) + 10 \* range_of_blocks
 
 ### Voting procedure - voter set up
+#### The Interface
+One important point of failure of the system is the 
+user's interface. The interface will need to be as
+intuitive and complete as possible since not everyone
+is a computer expert. 
+
+#### Registration
+Through the interface the voter will generate a private/public 
+keypair of normal elliptic curve cryptography. Then
+the voter exports the public key and sends it 
+to the database of the manager (while sending also 
+proofs of the identity). Meanwhile the voter 
+has to get 1 eVote currency on the public key 
+balance to keep it in the ledger and sign a 
+special transaction to set their public name of
+maximum 32 ascii characters. 
+
+### Voting procedure - voting phase
+After the public voting list has been published along
+with the details required the voter will see
+a vote permission alongside with the voting id 
+that is the hash of the special transaction that
+started the voting. \n
+So the voter now reads the in-blockchain vote 
+prompt and expresses anonymously their vote.
+
+### Voting procedure - counting the result
+When the voting ends every node computes 
+the votes and determines the exit of the
+democratic vote. Every client that partecipated
+can choose to review who voted and count the votes
+themselves. Plus can verify if the vote ended up
+in the final counting.
