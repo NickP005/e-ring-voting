@@ -37,4 +37,4 @@ async def new_connection(websocket, _path):
         # await notify_users()
 
 
-start_server = websockets.serve(new_connection, '192.168.1.233', 25570)
+start_server = websockets.serve(new_connection, '0.0.0.0', 25570)

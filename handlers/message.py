@@ -122,14 +122,16 @@ async def aim_new_node(nodes_array, _websocket):
 
 async def broadcast_message(msg, nonce):
     """
-    Qui si invia a tutte le persone a cui si è connessi un messaggio, quindi si invia ai client e ai server a cui 
-    si è connessi il messaggio, ma prima bisogna controllare che si è connessi ad abbastanza persone (impostate su 
+    Qui si invia a tutte le persone a cui si è connessi un messaggio, quindi si invia ai client e ai server a cui
+    si è connessi il messaggio, ma prima bisogna controllare che si è connessi ad abbastanza persone (impostate su
     settings.json)
     """
     await connections.stay_not_alone()
 
     print("Sto per inviare ", msg)
-    nonce_array = nonce_dictionary[nonce]
+    nonce_array = nonce_dictionary.setdefault(nonce, [])
+    if nonce in nonce_dictionary:
+        nonce_array = nonce_dictionary[nonce]
     for websocket in server.clients_connected | client.websocket_connections:
         ip, port = websocket.remote_address
         if ip in nonce_array:

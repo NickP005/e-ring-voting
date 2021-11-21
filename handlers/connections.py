@@ -67,11 +67,9 @@ async def stay_not_alone(min_connections=2):
     if current_connections >= min_connections:
         return True
     # Ora si controlla su data/net_nodes.json se ci sono nodi a cui ci si può connettere in piu
-
     json_nodes = json_files["data/known_nodes.json"]
-    print(json_nodes)
-    print(json_nodes["nodes"])
-    for node_data in json_nodes["nodes"].values():
+    print("nodes", json_nodes["nodes"])
+    for node_data in list(json_nodes["nodes"].values()):
         if node_data["attempts"] == 0:
             continue
         print("controllo se sono gia connesso con quel nodo")
