@@ -1,6 +1,7 @@
 import asyncio
 import websockets
 from handlers import message, connections
+import socket
 
 clients_connected = set()
 
@@ -21,7 +22,7 @@ async def unregister(websocket):
 async def new_connection(websocket, _path):
     # register(websocket) sends user_event() to websocket
     await register(websocket)
-    asyncio.get_event_loop()
+    #asyncio.get_event_loop()
     try:
         async for msg in websocket:
             await message.handle_incoming_message(msg, websocket)
@@ -36,5 +37,17 @@ async def new_connection(websocket, _path):
         await unregister(websocket)
         # await notify_users()
 
-
-start_server = websockets.serve(new_connection, '0.0.0.0', 25570)
+def get_ip():
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        # doesn't even have to be reachable
+        s.connect(('10.255.255.255', 1))
+        IP = s.getsockname()[0]
+    except Exception:
+        IP = '127.0.0.1'
+    finally:
+        s.close()
+    return IP
+local_ip = get_ip()
+print("Local IP: ", local_ip)
+start_server = websockets.serve(new_connection, local_ip, 25570)
