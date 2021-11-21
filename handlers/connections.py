@@ -16,9 +16,9 @@ async def load_known_nodes():
     return_var = False
     data = None
     try:
-        data = json_files["data/net_nodes.json"]
+        data = json_files["net_nodes.json"]
     finally:
-        with open('data/net_nodes.json', 'w') as json_file:
+        with open('net_nodes.json', 'w') as json_file:
             json.dump(data, json_file, indent=4)
             # print("saved JSON file")
             json_file.close()
@@ -32,8 +32,8 @@ async def stayNotAlone(min_connections=2):
     if current_connections >= min_connections:
         return True
     json_nodes = None
-    # Ora si controlla su data/net_nodes.json se ci sono nodi a cui ci si può connettere in piu
-    async with async_open("data/known_nodes.json", 'r') as afp:
+    # Ora si controlla su net_nodes.json se ci sono nodi a cui ci si può connettere in piu
+    async with async_open("known_nodes.json", 'r') as afp:
         json_nodes = json.loads(await afp.read())
         print(json_nodes)
         print(json_nodes["nodes"])
@@ -54,7 +54,7 @@ async def stayNotAlone(min_connections=2):
             # adesso teoricamente dovremmo ridurre attempts di questo nodo di -1
             print("fallito a connettersi a", node_data["ip"])
             node_data["attempts"] -= 1
-    async with async_open("data/known_nodes.json", 'w+') as afp:
+    async with async_open("known_nodes.json", 'w+') as afp:
         result = json.dumps(json_nodes, indent=4)
         await afp.write(result)
 """
@@ -66,8 +66,8 @@ async def stay_not_alone(min_connections=2):
     print("Connesso con", current_connections, "nodi")
     if current_connections >= min_connections:
         return True
-    # Ora si controlla su data/net_nodes.json se ci sono nodi a cui ci si può connettere in piu
-    json_nodes = json_files["data/known_nodes.json"]
+    # Ora si controlla su net_nodes.json se ci sono nodi a cui ci si può connettere in piu
+    json_nodes = json_files["known_nodes.json"]
     print("nodes", json_nodes["nodes"])
     for node_data in list(json_nodes["nodes"].values()):
         if node_data["attempts"] == 0:
@@ -90,9 +90,9 @@ async def stay_not_alone(min_connections=2):
 
 """
 async def saveNewNodeIP(ip):
-    async with async_open("data/known_nodes.json", 'r') as afp:
+    async with async_open("known_nodes.json", 'r') as afp:
         json_nodes = json.loads(await afp.read())
-    async with async_open("data/known_nodes.json", 'w+') as afp:
+    async with async_open("known_nodes.json", 'w+') as afp:
         if ip in json_nodes["nodes"].values():
             return True
         json_nodes["nodes"][ip] = {"ip": ip, "attempts": 5}
@@ -109,7 +109,7 @@ async def save_new_node(ip):
     if ip == "127.0.0.1":
         print("Won't save 127.0.0.1")
         return False
-    json_nodes = json_files["data/known_nodes.json"]
+    json_nodes = json_files["known_nodes.json"]
     if ip in json_nodes["nodes"].values():
         return True
     json_nodes["nodes"][ip] = {"ip": ip, "attempts": 5}

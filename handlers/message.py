@@ -87,7 +87,7 @@ async def aim_discover_nodes(websocket):
     nodes_to_send = []
     # json_nodes = None
 
-    json_nodes = json_files["data/known_nodes.json"]
+    json_nodes = json_files["known_nodes.json"]
     optimal_iterations = 5
     all_nodes = []
     for node_data in json_nodes["nodes"].values():
