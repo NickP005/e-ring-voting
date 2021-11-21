@@ -1,13 +1,14 @@
 # https://websockets.readthedocs.io/en/3.0/intro.html
 
 import asyncio
-from handlers import client, connections, server, file
+from handlers import file, client, connections, server
 from exceptions import *
 
 
 async def my_super_loop():
     await client.check_connection_with("192.168.1.151")
     await asyncio.sleep(2)
+    #await connections.ask_for_friends()
 
     # repeats the task forever
     asyncio.create_task(my_super_loop())
@@ -16,7 +17,7 @@ async def my_super_loop():
 async def start_all():
     print("starting voting blockchain node v0.1")
     print("starting websocket server..")
-    asyncio.ensure_future(file.load_dict())
+    await file.load_dict()
     asyncio.ensure_future(server.start_server)
     asyncio.ensure_future(my_super_loop())
     asyncio.ensure_future(file.write_json())
