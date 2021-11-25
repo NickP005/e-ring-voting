@@ -3,7 +3,7 @@ import hashlib
 # this function is just demonstrative and probably used not so often
 def hash_json_block(block_json):
     block_bytes = from_json_to_bytes(block_json)
-    if(block_bytes is False):
+    if block_bytes is False:
         print("something went wrong while computing the block hash")
         return False
     block_hash = hashlib.sha256(block_bytes)
