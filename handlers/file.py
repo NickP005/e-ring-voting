@@ -6,7 +6,8 @@ import os.path
 
 json_files = {
     "data/net_nodes.json": {},
-    "data/known_nodes.json": {}
+    "data/known_nodes.json": {},
+    "data/settings.json":{}
 }
 
 
@@ -20,7 +21,7 @@ async def load_dict():
         assert os.path.getsize(file_name) > 0, f"{file_name} IS EMPTY!!"
 
         async with async_open(file_name, 'r') as json_file:
-            print("loading.. ", file_name)
+            print("loading ", file_name, "...")
             file_content = await json_file.read()
             json_files[file_name] = json.loads(file_content)
 
@@ -31,8 +32,10 @@ async def write_json():
     """
     Overwrites json files with the values in the dictionary storing its value every 5 minutes.
     """
-    await asyncio.sleep(5*60)
+    await asyncio.sleep(1*60)
+    print("Going to save local files..")
     for file_name in json_files.keys():
+        print("saving ", file_name, "...")
         async with async_open(file_name, 'w+') as json_file:
             result = json.dumps(json_files[file_name], indent=4)
             await json_file.write(result)  # overwrite json with json_files values

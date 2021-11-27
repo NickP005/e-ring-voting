@@ -53,6 +53,7 @@ def txs_json_to_bytes(transactions):
     return blob
 
 def generateBlob():
+
     pass
 
 #this needs to be higly optimized

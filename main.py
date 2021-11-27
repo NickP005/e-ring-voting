@@ -6,9 +6,9 @@ from exceptions import *
 
 
 async def my_super_loop():
-    await client.check_connection_with("192.168.1.151")
-    await asyncio.sleep(2)
-    #await connections.ask_for_friends()
+    #await client.check_connection_with("192.168.1.151")
+    await asyncio.sleep(5)
+    await connections.ask_for_friends()
 
     # repeats the task forever
     asyncio.create_task(my_super_loop())

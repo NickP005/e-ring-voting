@@ -136,10 +136,10 @@ async def broadcast_message(msg, nonce):
         ip, port = websocket.remote_address
         if ip in nonce_array:
             print("questo lo conosco gia")
-            continue
-        print("sto per inviare un messaggio a ", ip, ":", port)
-        await websocket.send(msg)
-        nonce_array.append(ip)
+        else:
+            print("sto per inviare un messaggio a ", ip, ":", port)
+            await websocket.send(msg)
+            nonce_array.append(ip)
     nonce_dictionary[nonce] = nonce_array
     # await asyncio.wait([websocket.send(message) for websocket in server.clients_connected])
     # await asyncio.wait([websocket.send(message) for websocket in client.websocket_connections])
