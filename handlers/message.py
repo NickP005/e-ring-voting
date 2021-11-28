@@ -11,7 +11,9 @@ nonce_dictionary: dict[str, list] = {}  # dictionaries are ordered for python >=
 
 
 async def handle_incoming_message(msg, websocket):
-    print("message received")
+    #print("message received")
+    ip, port = websocket.remote_address
+    print(f"[{ip}] -> [] {msg}")
     try:
         message_dict = json.loads(msg)
         message_aim = message_dict["aim"]
@@ -115,6 +117,7 @@ async def aim_new_node(nodes_array, _websocket):
         if impostors == 2:
             return False
         if not await client.connect_to(node_ip):
+            print("impostors +1")
             impostors += 1
         await connections.save_new_node(node_ip)
     return True
@@ -137,7 +140,8 @@ async def broadcast_message(msg, nonce):
         if ip in nonce_array:
             print("questo lo conosco gia")
         else:
-            print("sto per inviare un messaggio a ", ip, ":", port)
+            #print("sto per inviare un messaggio a ", ip, ":", port)
+            print("[]->[", ip, "]", msg)
             await websocket.send(msg)
             nonce_array.append(ip)
     nonce_dictionary[nonce] = nonce_array

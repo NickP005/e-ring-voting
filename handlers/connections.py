@@ -63,28 +63,28 @@ async def stayNotAlone(min_connections=2):
 async def stay_not_alone(min_connections=2):
     # questo dopo sarà preso da un json
     current_connections = len(server.clients_connected) + len(client.websocket_connections)
-    print("Connesso con", current_connections, "nodi")
+    #print("Connesso con", current_connections, "nodi")
     if current_connections >= min_connections:
         return True
     # Ora si controlla su data/net_nodes.json se ci sono nodi a cui ci si può connettere in piu
     json_nodes = json_files["data/known_nodes.json"]
-    print("nodes", json_nodes["nodes"])
+    #print("nodes", json_nodes["nodes"])
     for node_data in list(json_nodes["nodes"].values()):
         if node_data["attempts"] == 0:
             continue
-        print("controllo se sono gia connesso con quel nodo")
         if await client.check_connection_with(node_data["ip"]):
-            print("sono gia connesso con", node_data["ip"])
+            #print("sono gia connesso con", node_data["ip"])
             continue
-        print("mi connetterò a", node_data["ip"])
         if await client.connect_to(node_data["ip"]):
             current_connections += 1
+            print(f"Connesso con successo a {node_data['ip']}")
             node_data["attempts"] = 5
             if current_connections >= min_connections:
                 return True
             continue
+        else:
+            print(f"Fallito a connettersi a {node_data['ip']}")
         # adesso teoricamente dovremmo ridurre attempts di questo nodo di -1
-        print("fallito a connettersi a", node_data["ip"])
         node_data["attempts"] -= 1
 
 

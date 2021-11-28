@@ -2,12 +2,13 @@
 
 import asyncio
 from handlers import file, client, connections, server
+from mining import mining
 from exceptions import *
 
 
 async def my_super_loop():
     #await client.check_connection_with("192.168.1.151")
-    await asyncio.sleep(5)
+    await asyncio.sleep(10)
     await connections.ask_for_friends()
 
     # repeats the task forever
@@ -18,10 +19,11 @@ async def start_all():
     print("starting voting blockchain node v0.1")
     print("starting websocket server..")
     await file.load_dict()
-    asyncio.ensure_future(server.start_server)
+    await server.start()
     asyncio.ensure_future(my_super_loop())
     asyncio.ensure_future(file.write_json())
-    asyncio.ensure_future(connections.ask_for_friends())
+    #asyncio.ensure_future(connections.ask_for_friends())
+    asyncio.ensure_future(mining.start_mining())
 
 
 def main():

@@ -32,7 +32,8 @@ async def write_json():
     """
     Overwrites json files with the values in the dictionary storing its value every 5 minutes.
     """
-    await asyncio.sleep(1*60)
+    await asyncio.sleep(1)
+    await asyncio.sleep(json_files["data/settings.json"]["file_update_interval"])
     print("Going to save local files..")
     for file_name in json_files.keys():
         print("saving ", file_name, "...")

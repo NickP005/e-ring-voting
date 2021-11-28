@@ -1,3 +1,4 @@
+import asyncio
 import hashlib
 
 # this function is just demonstrative and probably used not so often
@@ -64,7 +65,7 @@ def hash_difficulty(hash_bin):
         if byte.bit_length() != 0:
             break
     return leading_zeros
-
+"""
 test_block = {}
 test_block["pblockhash"] = hashlib.sha256("begula".encode()).hexdigest()
 test_block["blocknum"] = 0
@@ -79,3 +80,4 @@ test_block["bhash"] = "4dcf58cc4d60317da3220bf2807a2f01d8fcd7ad97bd4e10cd6da437f
 hashed = hash_json_block(test_block)
 print(hashed)
 print(hash_difficulty(hashed))
+"""

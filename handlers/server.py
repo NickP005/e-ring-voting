@@ -48,6 +48,9 @@ def get_ip():
     finally:
         s.close()
     return IP
-local_ip = get_ip()
-print("Local IP: ", local_ip)
-start_server = websockets.serve(new_connection, local_ip, 25570)
+
+async def start():
+    local_ip = get_ip()
+    print("Local IP: ", local_ip)
+    start_server = websockets.serve(new_connection, local_ip, 25570)
+    asyncio.ensure_future(start_server)
