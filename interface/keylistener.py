@@ -51,7 +51,15 @@ async def createListenThread():
   LT = threading.Thread(target=listenThread)
   LT.start()
 
+##Call this to see if there is any console data to return.
 async def getInputtedData():
   if consoleFlags["dataInputted"] != False:
     return consoleFlags["currentConsoleOutput"]
   return None
+
+"""USE:
+Create a listening thread by calling "await createListenThread()" inside of an async function.
+After this is done, it should return after creating the thread, now you can interact with the keyboardListener and when the main program wants to see if there is any
+data for it too read from the console it can execute "await getInputtedData()" which will returh None if the dataInputted flag is False, 
+and will return the currentConsoleOutput flag if the dataInputtedFlag is True
+"""
