@@ -5,8 +5,8 @@ import os.path
 
 
 json_files = {
-    "data/net_nodes.json": {},
     "data/known_nodes.json": {},
+    "data/block_index.json": {},
     "data/settings.json":{}
 }
 
@@ -43,3 +43,13 @@ async def write_json():
 
     asyncio.create_task(write_json())  # repeats
             # questo modo di fare i loop non mi piace. lo riscriverò
+
+#loads from memory the block bytes
+async def loadBlockBytes(block_hash):
+    file_name = "data/blocks/" + block_hash + ".voteblock"
+    if not (os.path.exists(file_name) and os.path.getsize(file_name) > 0):
+        print(f"Unable to load block bytes of {block_hash}")
+        return False
+    async with async_open(file_name, 'rb') as json_file:
+        file_content = await json_file.read()
+        return file_content

@@ -9,6 +9,7 @@ import sys
 import multiprocessing
 from handlers.file import json_files
 from mining import hash
+from aiofile import async_open
 
 sys.tracebacklimit = 0
 
@@ -40,9 +41,9 @@ def mine(difficulty, hash_to_mine, iterations=100000):
         if hash.hash_difficulty(block_hash) >= difficulty:
             #print("FOUND BLOCK ----- with nonce ", (start ))
             #print("block hash", block_hash)
-            #print("successfully found block", block_to_mine + nonce)
+            #print("successfully found block", hash_to_mine + nonce)
             #print( hash.hash_difficulty(block_hash))
-            return block_to_mine + nonce
+            return hash_to_mine + nonce
     return False
 
 
@@ -70,6 +71,21 @@ async def start_mining():
         threading.Thread(target=spawner).start()
     except KeyboardInterrupt:
         return True
+    global do_mine
+    while(do_mine):
+        #here we update every 5 seconds the block to mine
+        await asyncio.sleep(5)
+        if(hash_to_mine.hex() in found_nonces):
+            nonce_bytes = found_nonces[hash_to_mine.hex()]
+            print("probably found a block!", len(nonce_bytes))
+            #print(hash_to_mine + found_nonces[hash_to_mine.hex()] )
+            block_hash = hashlib.sha256(hash_to_mine).digest()
+            bhash = hashlib.sha256(hash_to_mine + nonce_bytes).digest()
+            print("recovered bhash", bhash.hex())
+            print("block hash",hash_to_mine.hex())
+
+            print("block to mine", block_to_mine)
+            final_block = block_to_mine + nonce_bytes
     #global do_mine
     #do_mine = False #to stop the mining thread
 
@@ -89,6 +105,7 @@ async def defaultBlock():
     if len(hash_to_mine) != 32:
         print("no hash to mine present")
         hash_to_mine = hashlib.sha256(block_to_mine).digest()
+        print("default block hash", hash_to_mine.hex())
 def spawner():
     try:
         global do_mine
@@ -118,6 +135,9 @@ def spawner():
                     break
             if(found_block):
                 print("FOUND BLOCK HASH ", block_found)
+                #print("len of found hash", len(block_found))
+                found_nonces[hash_to_mine.hex()] = block_found[-8:]
+                print("FOUND NONCE ", found_nonces[hash_to_mine.hex()])
             #print(return_dict)
         print("spawner() process stopped")
     except KeyboardInterrupt:

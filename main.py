@@ -2,7 +2,7 @@
 
 import asyncio
 from handlers import file, client, connections, server
-from mining import mining
+from mining import mining, block
 from exceptions import *
 
 
@@ -24,6 +24,7 @@ async def start_all():
     asyncio.ensure_future(file.write_json())
     #asyncio.ensure_future(connections.ask_for_friends())
     asyncio.ensure_future(mining.start_mining())
+    asyncio.ensure_future(block.init())
 
 
 def main():
