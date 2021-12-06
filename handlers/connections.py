@@ -106,7 +106,7 @@ async def save_new_node(ip):
     Saves new node's ip in known nodes json file
     :param ip: ip of the node to be saved
     """
-    if ip == "127.0.0.1":
+    if ip == "127.0.0.1" or ip==server.local_ip:
         print("Won't save 127.0.0.1")
         return False
     json_nodes = json_files["data/known_nodes.json"]

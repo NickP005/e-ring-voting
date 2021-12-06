@@ -4,7 +4,7 @@ from handlers import message, connections
 import socket
 
 clients_connected = set()
-
+local_ip = "0.0.0.0"
 
 async def register(websocket):
     ip, port = websocket.remote_address
@@ -50,6 +50,7 @@ def get_ip():
     return IP
 
 async def start():
+    global local_ip
     local_ip = get_ip()
     print("Local IP: ", local_ip)
     start_server = websockets.serve(new_connection, local_ip, 25570)

@@ -1,7 +1,6 @@
 import asyncio
 import websockets
 
-
 from handlers import message, server, connections
 
 websocket_connections = set()
@@ -78,4 +77,6 @@ async def check_connection_with(ip_check):
         # print("{} : {}".format(ip, port))
         if ip_check == ip:
             return True
+    if ip_check == server.local_ip:
+        return True
     return False
