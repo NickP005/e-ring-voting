@@ -58,6 +58,7 @@ async def start_mining():
     print("cores:", many_cores)
     if(many_cores < 2):
         print("Cannot proceed to start mining: minimum cores requirement for mining is 2.")
+        return False
     print("generating default block (just for testing!!)")
     await defaultBlock()
     print(block_to_mine)
@@ -76,7 +77,7 @@ async def defaultBlock():
     test_block = {}
     test_block["pblockhash"] = hashlib.sha256("begula".encode()).hexdigest()
     test_block["blocknum"] = 0
-    test_block["difficulty"] = 28
+    test_block["difficulty"] = 23
     test_block["weight"] = 1
     test_block["m_addr"] = hashlib.sha256("ghost".encode()).hexdigest()
     test_block["transactions"] = []
