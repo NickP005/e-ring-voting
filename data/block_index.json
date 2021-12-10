@@ -1,0 +1,20 @@
+{
+    "blocks": {
+        "3870354a4f52c2c40263476c282ea6079182f31cc0ca34e2b76a6f6d8eadf36a": {
+            "prev": "genesis",
+            "difficulty": 23
+        },
+        "3870354a4f52c2c40263476c282ea6079182f31cc0ca34e2b76a6f6d8eadf362": {
+            "prev": "3870354a4f52c2c40263476c282ea6079182f31cc0ca34e2b76a6f6d8eadf36a",
+            "difficulty": 23
+        },
+        "3870354a4f52c2c40263476c282ea6079182f31cc0ca34e2b76a6f6d8eadf363": {
+            "prev": "3870354a4f52c2c40263476c282ea6079182f31cc0ca34e2b76a6f6d8eadf362",
+            "difficulty": 23
+        },
+        "3870354a4f52c2c40263476c282ea6079182f31cc0ca34e2b76a6f6d8eadf364": {
+            "prev": "3870354a4f52c2c40263476c282ea6079182f31cc0ca34e2b76a6f6d8eadf36a",
+            "difficulty": 23
+        }
+    }
+}

@@ -7,13 +7,19 @@ from handlers import client, server, connections
 from exceptions import *
 
 nonce_list = []
-nonce_dictionary: dict[str, list] = {}  # dictionaries are ordered for python >=3.6
+nonce_dictionary = {}  # dictionaries are ordered for python >=3.6
 
+reserved_answers = {} # ip+aim : msg
 
 async def handle_incoming_message(msg, websocket):
-    print("message received")
+    #print("message received")
+    ip, port = websocket.remote_address
+    print(f"[{ip}] -> [] {msg}")
     try:
         message_dict = json.loads(msg)
+        if exit in message_dict:
+            print("this is an error")
+            return
         message_aim = message_dict["aim"]
         message_nonce = message_dict["nonce"]
         await save_new_nonce_entry(message_nonce, websocket)
@@ -115,6 +121,7 @@ async def aim_new_node(nodes_array, _websocket):
         if impostors == 2:
             return False
         if not await client.connect_to(node_ip):
+            print(f"impostors +1 ({node_ip})")
             impostors += 1
         await connections.save_new_node(node_ip)
     return True
@@ -136,11 +143,38 @@ async def broadcast_message(msg, nonce):
         ip, port = websocket.remote_address
         if ip in nonce_array:
             print("questo lo conosco gia")
-            continue
-        print("sto per inviare un messaggio a ", ip, ":", port)
-        await websocket.send(msg)
-        nonce_array.append(ip)
+        else:
+            #print("sto per inviare un messaggio a ", ip, ":", port)
+            print("[]->[", ip, "]", msg)
+            await websocket.send(msg)
+            nonce_array.append(ip)
     nonce_dictionary[nonce] = nonce_array
     # await asyncio.wait([websocket.send(message) for websocket in server.clients_connected])
     # await asyncio.wait([websocket.send(message) for websocket in client.websocket_connections])
     # pass
+
+#this creates a privileged channel for a specific aim for a specific IP
+#this is not fast since requires the other part to answer
+#takes up to 1.8 seconds
+async def single_chat(msg, sock_ip, response_aim):
+    love_websocket = None
+    for websocket in server.clients_connected | client.websocket_connections:
+        ip, port = websocket.remote_address
+        if ip == sock_ip:
+            love_websocket = websocket
+            continue
+    #now we create our privileged answer
+    if (ip+response_aim) in reserved_answers:
+        print("cannot reserve answer since another is reserved")
+        await asyncio.sleep(1)
+        if (ip+response_aim) in reserved_answers:
+            return False
+    reserved_answers[ip+response_aim] = ""
+    await websocket.send(msg)
+    for i in range(10):
+        await asyncio.sleep(0.08)
+        if reserved_answers[ip+response_aim] != "":
+            to_return = reserved_answers[ip+response_aim].copy()
+            del reserved_answers[ip+response_aim]
+            return to_return
+    return False
