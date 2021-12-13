@@ -20,9 +20,10 @@ def from_json_to_bytes(block):
         block_weight = block["weight"].to_bytes(32, 'little') #32 bytes number
         transactions = txs_json_to_bytes(block["transactions"])
         miner_address = bytes.fromhex(block["m_addr"]) #sha256 miner address 32 bytes
+        epoch = block["epoch"].to_bytes(8, 'little') #8 bytes number
         block_nonce = block["nonce"].to_bytes(8, 'little') #8 bytes number
         #this still needs block_hash
-        blob = previous_block_hash + block_num + block_diff + block_weight + transactions + miner_address + block_nonce
+        blob = previous_block_hash + block_num + block_diff + block_weight + transactions + miner_address + epoch + block_nonce
         return blob
     except KeyError as e:
         print(f"this block miss {e}")

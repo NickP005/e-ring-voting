@@ -6,20 +6,29 @@ from mining import hash
 # latest_block_hash will be obtained by the init function
 latest_block_hash = b""
 latest_block_weight = 0
+latest_block_number = 0
+latest_block_difficulty = 20
+median_time_blocks = 60
 
 async def init():
     print("Going to initialize the blockchain..")
     print("mapping all the known blocks")
-    chain, latest_block_weight = await mapTree(json_files["data/block_index.json"]["blocks"])
+    global latest_block_hash, latest_block_weight, latest_block_number, latest_block_difficulty, median_time_blocks
+    chain, latest_block_weight = await mapTree(json_files["data/block_index.json"]["blocks"], json_files["data/settings.json"]["genesis_block"])
     latest_block_hash = bytes.fromhex(chain[-1])
+    latest_block_number = len(chain) - 1
     print("latest in-memory block:", latest_block_hash.hex())
+    #here we should verify that each block of that chain is correct
     result = await verifyBlocks(chain)
     if not result:
-        print("Unable to assure theese blocks are authentic. ")
-    #here we should verify that each block of that chain is correct
+        print("Unable to assure theese blocks are authentic. ", result)
+    #now we have the longest chain and we have verified it
+    #now we should calculate the average time of the last 11 blocks of the chain
+    median_time_blocks = await getMedianTimeFrom(chain)
+    latest_block_difficulty = await getBlockDifficulty(await file.loadBlockBytes(chain[-1]))
+    print("median time of the latest blocks:", median_time_blocks)
 
-
-async def mapTree(block_indexes, first_block="3870354a4f52c2c40263476c282ea6079182f31cc0ca34e2b76a6f6d8eadf36a"):
+async def mapTree(block_indexes, first_block):
     block_index = block_indexes.copy() #since we are deleting things for being fast
     outer_blocks = {first_block:[first_block]} #block hash : [list of hashes]
     return_blocks = outer_blocks.copy() #the same one as above
@@ -40,11 +49,9 @@ async def mapTree(block_indexes, first_block="3870354a4f52c2c40263476c282ea60791
                 del return_blocks[block_hash]
                 del block_index[block_hash]
         if not used_blocks:
-            #print("finished searching")
             keep_searching = False
         outer_blocks = return_blocks.copy()
         used_blocks = {}
-    #print("finished mapping block trees: ", return_blocks)
     #now calculate the weight of each chain
     chain_weights = {} # block_hash : weight
     for block_hash in outer_blocks:
@@ -52,7 +59,6 @@ async def mapTree(block_indexes, first_block="3870354a4f52c2c40263476c282ea60791
             chain_weights[block_hash] = 0
         for bhash in outer_blocks[block_hash]:
             chain_weights[block_hash] += 2 ** block_indexes[bhash]["difficulty"]
-    #print("chain weights", chain_weights)
     #now get the biggest chain ever
     max_hash = ""
     max_weight = 0
@@ -60,7 +66,6 @@ async def mapTree(block_indexes, first_block="3870354a4f52c2c40263476c282ea60791
         if weight > max_weight:
             max_hash = block_hash
             max_weight = weight
-    #print("winning hash chain", block_hash)
     return return_blocks[block_hash], max_weight
 
 #hash_array is hex
@@ -75,15 +80,57 @@ async def verifyBlocks(hash_array):
         if not (block_hash == recovered_block_hash.hex()):
             print("Recovered block hash doesn't correspond. Corrupted block.")
             return False
-        difficulty = result[64]
+        difficulty = await getBlockDifficulty(result)
         print("difficulty", difficulty)
         mhash = sha256(recovered_block_hash + result[-8:]).digest()
         if not (hash.hash_difficulty(mhash) >= difficulty):
-            print("invalid difficulty")
+            print("invalid difficulty of block ", block_hash)
             return False
-        if recovered_block_hash.hex() == "3870354a4f52c2c40263476c282ea6079182f31cc0ca34e2b76a6f6d8eadf36a":
-            #skip steps this block would fail
+        if recovered_block_hash.hex() == json_files["data/settings.json"]["genesis_block"]:
+            #skip steps genesis block would fail
             continue
         if bytes.fromhex(block_index[block_hash]["prev"]) != result[:32]:
             print("Previous block hashes don't correspond")
             return False
+        #I think there are more verifications idk I don't remember
+
+    return True
+
+
+async def getMedianTimeFrom(hash_chain):
+    #get the last 11 blocks
+    latest_chain = hash_chain[-12:]
+    block_time_chain = []
+    for block_hash in latest_chain:
+        block_bytes = await file.loadBlockBytes(block_hash)
+        block_time_chain.append(await getBlockEpoch(block_bytes, 'int'))
+    if len(block_time_chain) < 3:
+        return 60 #idk why its just the perfect block time
+    latest_epoch_time = 0
+    interval_arr = []
+    for epoch_time in block_time_chain:
+        if latest_epoch_time == 0:
+            latest_epoch_time = epoch_time
+            continue
+        interval_arr.append(epoch_time - latest_epoch_time)
+        latest_epoch_time = epoch_time
+    return median(interval_arr)
+
+async def getBlockEpoch(block_bytes, mode='bytes'):
+    if mode == 'bytes':
+        return block_bytes[-16:-8]
+    elif mode == 'int':
+        return int.from_bytes(block_bytes[-16:-8], "little")
+
+async def getBlockDifficulty(block_bytes):
+    return block_bytes[64]
+
+async def median(lst):
+    sortedLst = sorted(lst)
+    lstLen = len(lst)
+    index = (lstLen - 1) // 2
+
+    if (lstLen % 2):
+        return sortedLst[index]
+    else:
+        return (sortedLst[index] + sortedLst[index + 1])/2.0

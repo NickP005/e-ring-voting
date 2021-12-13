@@ -5,9 +5,9 @@ import os.path
 
 
 json_files = {
+    "data/settings.json":{},
     "data/known_nodes.json": {},
-    "data/block_index.json": {},
-    "data/settings.json":{}
+    "data/block_index.json": {}
 }
 
 

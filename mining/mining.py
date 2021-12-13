@@ -8,13 +8,15 @@ import threading
 import sys
 import multiprocessing
 from handlers.file import json_files
-from mining import hash
+from mining import hash, block
 from aiofile import async_open
 
 sys.tracebacklimit = 0
 
 block_to_mine = b""
 hash_to_mine = b"" #actually is the hash of the block that has to be mined
+#assigned transactions from a dedicated function which recovers not gone throught txs
+assigned_transactions = []
 # miner address will be taken by the settings
 miner_address = b""
 miner_address_hex = ""
@@ -61,7 +63,8 @@ async def start_mining():
         print("Cannot proceed to start mining: minimum cores requirement for mining is 2.")
         return False
     print("generating default block (just for testing!!)")
-    await defaultBlock()
+    #await defaultBlock()
+    await generateBlockToMine()
     print(block_to_mine)
     #queue = aioprocessing.AioQueue()
     #lock = aioprocessing.AioLock()
@@ -86,6 +89,10 @@ async def start_mining():
 
             print("block to mine", block_to_mine)
             final_block = block_to_mine + nonce_bytes
+            """
+            async with async_open(hash_to_mine.hex() + ".voteblock", 'wb') as json_file:
+                await json_file.write(final_block)"""
+
     #global do_mine
     #do_mine = False #to stop the mining thread
 
@@ -97,6 +104,7 @@ async def defaultBlock():
     test_block["weight"] = 1
     test_block["m_addr"] = hashlib.sha256("ghost".encode()).hexdigest()
     test_block["transactions"] = []
+    test_block["epoch"] = 1639389055
     test_block["nonce"] = 0
     global block_to_mine
     block_bytes = hash.from_json_to_bytes(test_block)
@@ -106,6 +114,36 @@ async def defaultBlock():
         print("no hash to mine present")
         hash_to_mine = hashlib.sha256(block_to_mine).digest()
         print("default block hash", hash_to_mine.hex())
+
+async def generateBlockToMine():
+    block_cache = {}
+    #first of all get the latest block
+    while block.latest_block_hash == b"":
+        print("mining.py: waiting for tree map")
+        await asyncio.sleep(2)
+    block_cache["pblockhash"] = block.latest_block_hash.hex()
+    block_cache["blocknum"] = block.latest_block_number + 1
+    block_cache["difficulty"] = block.latest_block_difficulty
+    if block.median_time_blocks > 90:
+        block_cache["difficulty"] += -1
+    elif block.median_time_blocks < 30:
+        block_cache["difficulty"] += 1
+    block_cache["weight"] = block.latest_block_weight
+    block_cache["m_addr"] = json_files["data/settings.json"]["miner_address"]
+
+    #FOR NOW KEEP TRANSACTION THING NOT WORKING
+    #the transactions every time there is a block update get erased and checked again
+    block_cache["transactions"] = assigned_transactions
+
+    print("block time", time.time())
+    block_cache["epoch"] = int(time.time())
+    block_cache["nonce"] = 0
+    global block_to_mine
+    block_bytes = hash.from_json_to_bytes(block_cache)
+    block_to_mine = block_bytes[:-8] #remove nonce for comodity
+    global hash_to_mine
+    hash_to_mine = hashlib.sha256(block_to_mine).digest()
+    print("generated block hash", hash_to_mine.hex())
 def spawner():
     try:
         global do_mine
