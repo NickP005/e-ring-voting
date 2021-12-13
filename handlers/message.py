@@ -123,6 +123,10 @@ async def aim_new_node(nodes_array, _websocket):
         if not await client.connect_to(node_ip):
             print(f"impostors +1 ({node_ip})")
             impostors += 1
+            if node_ip in json_files["data/known_nodes.json"]["nodes"]:
+                node_attempts = json_files["data/known_nodes.json"]["nodes"][node_ip]["attempts"]
+                if node_attempts > 0:
+                    node_attempts -= 1
         await connections.save_new_node(node_ip)
     return True
 

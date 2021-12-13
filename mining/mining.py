@@ -55,6 +55,7 @@ async def start_mining():
     miner_address_hex = settings_file["miner_address"]
     if len(miner_address_hex) != 64:
         print("Cannot proceed to start mining: the miner address is incorrect len!=64")
+        return False
     miner_address = bytes.fromhex(miner_address_hex)
     #Now get how many cores we have. Minimum 2 for mining
     many_cores = psutil.cpu_count()
@@ -63,12 +64,8 @@ async def start_mining():
         print("Cannot proceed to start mining: minimum cores requirement for mining is 2.")
         return False
     print("generating default block (just for testing!!)")
-    #await defaultBlock()
-    await generateBlockToMine()
+    await generateBlockToMine() #await defaultBlock()
     print(block_to_mine)
-    #queue = aioprocessing.AioQueue()
-    #lock = aioprocessing.AioLock()
-    #event = aioprocessing.AioEvent()
     await asyncio.sleep(1)
     try:
         threading.Thread(target=spawner).start()
@@ -81,8 +78,6 @@ async def start_mining():
         if(hash_to_mine.hex() in found_nonces):
             nonce_bytes = found_nonces[hash_to_mine.hex()]
             print("probably found a block!", len(nonce_bytes))
-            #print(hash_to_mine + found_nonces[hash_to_mine.hex()] )
-            block_hash = hashlib.sha256(hash_to_mine).digest()
             bhash = hashlib.sha256(hash_to_mine + nonce_bytes).digest()
             print("recovered bhash", bhash.hex())
             print("block hash",hash_to_mine.hex())
@@ -144,6 +139,8 @@ async def generateBlockToMine():
     global hash_to_mine
     hash_to_mine = hashlib.sha256(block_to_mine).digest()
     print("generated block hash", hash_to_mine.hex())
+
+
 def spawner():
     try:
         global do_mine
@@ -183,6 +180,7 @@ def spawner():
         do_mine = False
         return True
 
+# https://www.youtube.com/watch?v=GK2GUxOnjDQ
 def worker(procnum, return_dict, hash_to_mine, difficulty):
     try:
         result = mine(difficulty, hash_to_mine)
