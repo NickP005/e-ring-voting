@@ -10,13 +10,16 @@ latest_block_number = 0
 latest_block_difficulty = 20
 median_time_blocks = 60
 
+block_hashes_chain = []
+
 async def init():
     print("Going to initialize the blockchain..")
     print("mapping all the known blocks")
-    global latest_block_hash, latest_block_weight, latest_block_number, latest_block_difficulty, median_time_blocks
+    global latest_block_hash, latest_block_weight, latest_block_number, latest_block_difficulty, median_time_blocks, block_hashes_chain
     chain, latest_block_weight = await mapTree(json_files["data/block_index.json"]["blocks"], json_files["data/settings.json"]["genesis_block"])
     latest_block_hash = bytes.fromhex(chain[-1])
     latest_block_number = len(chain) - 1
+    block_hashes_chain = chain
     print("latest in-memory block:", latest_block_hash.hex())
     #here we should verify that each block of that chain is correct
     result = await verifyBlocks(chain)
@@ -96,6 +99,13 @@ async def verifyBlocks(hash_array):
 
     return True
 
+# this function is called when we receive a block update
+# both from our local mining and the network
+# so here happens ALL the validation
+async def blockUpdate(block_bytes, conn_nonce):
+    # first of all we check if the previous blocks is in our latest 64 blocks
+
+    pass
 
 async def getMedianTimeFrom(hash_chain):
     #get the last 11 blocks
