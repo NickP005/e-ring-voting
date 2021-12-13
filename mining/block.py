@@ -103,10 +103,30 @@ async def verifyBlocks(hash_array):
 # both from our local mining and the network
 # so here happens ALL the validation
 async def blockUpdate(block_bytes, conn_nonce):
-    # first of all we check if the previous blocks is in our latest 64 blocks
-
-    pass
-
+    # first of all we check if the previous blocks is in our latest 50 blocks
+    update_blocks = block_hashes_chain[-50:]
+    previous_hash_hex = await getBlockPrevious(block_bytes, 'hex')
+    if previous_hash_hex not in update_blocks:
+        print(f"Cannot append received block {conn_bytes} since has not previous")
+        return False
+    # now we check if the block number is correct based on the previous
+    previous_block = file.loadBlockBytes(previous_hash_hex)
+    previous_height = await getBlockHeight(previous_block, 'int')
+    if await getBlockHeight(block_bytes, 'int') != (previous_height + 1):
+        print("block.py: invalid block height")
+        return False
+    median_list_check = block_hashes_chain[block_hashes_chain.index(previous_hash_hex) - 11 : block_hashes_chain.index(previous_hash_hex)]
+    print("len median list check", len(median_list_check))
+    median_time = await getMedianTimeFrom(median_list_check)
+    previous_block_difficulty = await getBlockDifficulty(previous_block)
+    if(median_time > 90):
+        previous_block_difficulty += 1
+    elif(median_time < 30):
+        previous_block_difficulty += -1
+    if(previous_block_difficulty != (await getBlockDifficulty(block_bytes))):
+        print(f"Cannot append received block {conn_bytes} since the difficulty is invalid")
+        return False
+    
 async def getMedianTimeFrom(hash_chain):
     #get the last 11 blocks
     latest_chain = hash_chain[-12:]
@@ -125,6 +145,18 @@ async def getMedianTimeFrom(hash_chain):
         interval_arr.append(epoch_time - latest_epoch_time)
         latest_epoch_time = epoch_time
     return median(interval_arr)
+
+async def getBlockPrevious(block_bytes, mode='bytes'):
+    if mode == 'bytes':
+        return block_bytes[:32]
+    elif mode == 'hex':
+        return block_bytes[:32].hex()
+
+async def getBlockHeight(block_bytes, mode='bytes'):
+    if mode == 'bytes':
+        return block_bytes[32:64]
+    elif mode == 'int':
+        return int.from_bytes(block_bytes[32:64], "little")
 
 async def getBlockEpoch(block_bytes, mode='bytes'):
     if mode == 'bytes':
