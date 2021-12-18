@@ -115,7 +115,7 @@ async def blockUpdate(block_bytes, conn_nonce):
     if await getBlockHeight(block_bytes, 'int') != (previous_height + 1):
         print("block.py: invalid block height")
         return False
-    median_list_check = block_hashes_chain[block_hashes_chain.index(previous_hash_hex) - 11 : block_hashes_chain.index(previous_hash_hex)]
+    median_list_check = block_hashes_chain[block_hashes_chain.index(previous_hash_hex) - 12 : block_hashes_chain.index(previous_hash_hex)]
     print("len median list check", len(median_list_check))
     median_time = await getMedianTimeFrom(median_list_check)
     previous_block_difficulty = await getBlockDifficulty(previous_block)
@@ -126,7 +126,7 @@ async def blockUpdate(block_bytes, conn_nonce):
     if(previous_block_difficulty != (await getBlockDifficulty(block_bytes))):
         print(f"Cannot append received block {conn_bytes} since the difficulty is invalid")
         return False
-    
+
 async def getMedianTimeFrom(hash_chain):
     #get the last 11 blocks
     latest_chain = hash_chain[-12:]
