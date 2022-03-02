@@ -5,7 +5,7 @@ PUBLIC_order = 0xF518AA8781A8DF278ABA4E7D64B7CB9D49462353
 #END OF PUBLIC PARAMETERS
 
 #sample data
-import randomic
+import randomic, utils
 import math
 import sys
 #every cN, zN and order is 20 bytes long
@@ -54,46 +54,69 @@ allowed_letters_encoding = "qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM
 def round_up(n, decimals=0):
     multiplier = 10 ** decimals
     return math.ceil(n * multiplier) / multiplier
+"""
+#the message can be a vote (starts with $) or a transfer (starts with *) to another group
+#with another key
 def encode_tag(topic, message):
     if(len(topic) > 16*255): #i know its 256
         print("topic too much big")
         return False
-    many_chunks = round_up(len(topic)/16)
-    print("chunk bytes", many_chunks*8)
+    if(len(message) > 16): #i know its 256
+        print("message too much big")
+        return False
+    many_chunks = int(round_up(len(topic)/16))
+    print("chunk bytes", many_chunks*16)
     topic_bytes = bytes()
-    char_index = 1
-    latest_bits = 0
     for letter in topic:
         position = allowed_letters_encoding.find(letter)
         if(position == -1):
             print("bad characters")
             return False
-        four_bits = position
-        if char_index % 2 == 0:
-            print(latest_bits)
-            print(latest_bits)
-            latest_bits = latest_bits | four_bits
-            print(latest_bits)
-            topic_bytes = topic_bytes + latest_bits.to_bytes(1, 'big')
-            char_index += 1
-        else:
-            latest_bits = four_bits << 4
-            char_index += 1
-    print(topic_bytes.hex())
+        topic_bytes += position.to_bytes(1, 'big')
+    for _ in range((many_chunks*16) - len(topic)):
+        topic_bytes += (62).to_bytes(1, 'big')
 
-encode_tag("Do you want pizza or pasta?", "pizza")
+    message_bytes = bytes()
+    for letter in message:
+        position = allowed_letters_encoding.find(letter)
+        if(position == -1):
+            print("bad characters")
+            return False
+        message_bytes += position.to_bytes(1, 'big')
+    for _ in range(16 - len(message)):
+        message_bytes += (62).to_bytes(1, 'big')
+
+    return (topic_bytes + message_bytes)
+encoded_tag = encode_tag("Do you want pizza or pasta?", "pizza")
+"""
+#returns the topic encoded in bytes and
+#the hash can be calculated after with bytes
+"""
+most of this data is just for the voter, so they can read:
+ - timestamp of the proposal
+ - brief title of max 30 characters
+ - description of the proposal
+ - (optional) instruction about the votes
+ - candidates (so what to put in the message)
+ - attached documents hashes and their title(no more 30 char)
+ - links where to direct download through http documents (through TOR!)
+ - (optional) magnet link to download the docs (through TOR!)
+"""
+def encode_topic():
+    pass
+
 #START OF HASH FUNCTIONS
 #takes in data and outputs a number that is in G
 def hash_zero(data):
-  random_int = randomic.Rng(data).random_int(0, PUBLIC_order)
+  random_int = randomic.Rng(data + (0).to_bytes(1, 'big')).random_int(0, PUBLIC_order)
   return pow(PUBLIC_gen, random_int, mod=PUBLIC_p)
 #takes in data and outputs a number that is in G
 def hash_one(data):
-  random_int = randomic.Rng(data + b"1").random_int(0, PUBLIC_order)
+  random_int = randomic.Rng(data + (1).to_bytes(1, 'big')).random_int(0, PUBLIC_order)
   return pow(PUBLIC_gen, random_int, mod=PUBLIC_p)
 #takes in data and outputs a number that is between (0)1 to PUBLIC_order
 def hash_two(data):
-  return randomic.Rng(data + b"2").random_int(1, PUBLIC_order)
+  return randomic.Rng(data + (2).to_bytes(1, 'big')).random_int(1, PUBLIC_order)
 #END OF HASH FUNCTIONS
 
 #PUBLIC-PRIVATE KEPAIR GENERATION
@@ -105,7 +128,45 @@ def gen_public(private_xi):
 #END OF PUBLIC-PRIVATE KEPAIR GENERATION
 
 #SIGNATURE GENERATION
-def sign_message(private_key, issue, pub_keys):
-    pass
-
+#position from 1 to len+1
+def sign_message(private_key_num, issue_hash_bytes, message_bytes, pub_keys_bytes, position):
+    h = hash_zero(issue_hash_bytes + pub_keys_bytes)
+    sigma_i = pow(h, private_key_num, mod=PUBLIC_p)
+    A0 = hash_one(issue_hash_bytes + pub_keys_bytes + message_bytes)
+    A1 = pow(text.getFractionModulo(sigma_i , A0), text.getFractionModulo(1,position), PUBLIC_p)
+    pub_keys = decode_public_keys(pub_keys_bytes)
+    signature_list = []
+    for j in range(1, len(pub_keys) + 1):
+        if(j == position):
+          signature_list.append(0)
+          continue
+        sigma_j = (A0 * (pow(A1, j, mod=PUBLIC_p))) % PUBLIC_p
+        signature_list.append(sigma_j)
+    randomw_i = gen_private()
+    a_list = []
+    b_list = []
+    cj_list =
+    zj_list = {}
+    for j in range(1, len(pub_keys) + 1):
+        if(j == position):
+          a_list.append(pow(PUBLIC_gen, randomw_i, mod=PUBLIC_p))
+          b_list.append(pow(h, randomw_i, mod=PUBLIC_p))
+          cj_list.append(0)
+          zj_list.append(0)
+          continue
+        z_j = gen_private()
+        c_j = gen_private()
+        cj_list.append(c_j)
+        zj_list.append(z_j)
+        a_j = (pow(PUBLIC_gen, z_j, mod=PUBLIC_p) * pow(pub_keys[j-1], c_j, mod=PUBLIC_p)) % PUBLIC_p
+        b_j = (pow(h, z_j, mod=PUBLIC_p) * pow(signature_list[j-1], c_j, mod=PUBLIC_p)) % PUBLIC_p
+        a_list.append(a_j)
+        b_list.append(b_j)
+    c_hash2 = hash_two(issue_hash_bytes + pub_keys_bytes + A0.to_bytes(128, 'big') + A1.to_bytes(128, 'big') + encode_public_keys(a_list) + encode_public_keys(b_list))
+    sum_of_cj = 0
+    for element in cj_list:
+        sum_of_cj += element
+    cj_list[position-1] = (c_hash2 - (sum_of_cj)) % PUBLIC_order
+    zj_list[position-1] = (randomw_i - (cj_list[position-1] * private_key) % PUBLIC_order ) % PUBLIC_order
+    return (A1, cN, zN)
 #END OF SIGNATURE GENERATION
