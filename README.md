@@ -13,33 +13,64 @@ where anonymity is a must.
 The blockchain will have a currency that will be given with a fixed reward of 900eVotes for each block. 
 Half of each fee will be given to the miner. 
 
-### Voting procedure - start
-A manager is a person that starts a vote.
-To start a vote the manager needs X eVote.
-For every transaction there is a fixed fee of 1eVote. 
-To prepare a vote the manager needs to submit a special transaction.
-In that special transaction the manager needs to specify the public addresses of who can vote, the options that can be voted, a voting message, members per group and a range that specifies how much the voting lasts;
-the range has a start (expressed in block number) and a finish (expressed in a block number).
-The fee of the special transaction is calculated from:
-1 fixed eVote + (members \* members_per_group) + 10 \* range_of_blocks
+## Voting procedure
+Here there will be explained the various points of a voting.
 
-### Voting procedure - voter set up
-#### The Interface
-One important point of failure of the system is the 
-user's interface. The interface will need to be as
-intuitive and complete as possible since not everyone
-is a computer expert. 
+### Registration on blockchain
+The registration is an important phase in which is 
+decided who can vote and who can't. The list of allowed 
+voters is compiled in this phase. Each single voter
+must have registered inside the blockchain their EC pubkey 
+along with some mandatory parameters such as displayname and 
+some optional parameters which could be an unique identifier. 
+To register this information to the blockchain the voter should 
+sign those informations with the EC pubkey. This packet should then 
+be signed by an address that is willing to pay 1eVote to 
+register this information to blockchain. 
+This benefactor could be the same voter or could be the 
+organisation which is setting up the voting.
 
-#### Registration
-Through the interface the voter will generate a private/public 
-keypair of normal elliptic curve cryptography. Then
-the voter exports the public key and sends it 
-to the database of the manager (while sending also 
-proofs of the identity). Meanwhile the voter 
-has to get 1 eVote currency on the public key 
-balance to keep it in the ledger and sign a 
-special transaction to set their public name of
-maximum 32 ascii characters. 
+### Collect the voters on private platform
+At this point we suggest to create a simple interface where 
+you ask to proof the identity of the users and then ask to 
+them to provide their public keys and craft a simple proof 
+that "proofs" they own that public key (eg: they could sign 
+a random message). 
+
+### Reserve the blocks
+After the list of voters is completed, the manager has to 
+publicly submit all the informations about the voting. This 
+information could be really big to fir in a maximum transaction 
+size chunk.
+
+The manager will send at first a transaction that includes the 
+following data: preparing idle, votation lease, many partecipants, 
+group size and all the hashes of the chunks of data. 
+According to the information given in this transaction, the manager
+will have to put in forfeit a certain amount of eVotes. Plus
+the manager will have to pay as direct fee 5 eVotes for each data
+chunk.
+
+This transaction will generate a layer 2 blockchain where all the
+preparing and voting will be logged. This L2 will be identified 
+with the below-described transaction hash. The hash will also 
+include the blocknumber. There must not exist two votings with
+the same identifier. If one is presented, will be rejected.
+
+#### Difference between fee and forfeit
+The fee, for example the fee of the transaction, is a payment 
+in favour of the miner that mines the block. Meanwhile a 
+forfeit is an amount of eVotes taken (from the manager in this 
+case) which aren't directly given to the miner.
+
+### Push the data chunks
+The data chunks of the voting informations can be sent during
+the preparing idle period, starting directly from the same 
+block in which the reserving transaction took place. The 
+chunks don't need to be signed since the hash already is 
+present on the blockchain. 
+
+For each data chunk, depending on the information inside
 
 ### Voting procedure - voting phase
 After the public voting list has been published along
