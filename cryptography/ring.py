@@ -8,6 +8,7 @@ PUBLIC_order = 0xF518AA8781A8DF278ABA4E7D64B7CB9D49462353
 import randomic, utils
 import math
 import sys
+from random import randrange
 #every cN, zN and order is 20 bytes long
 #every A1, prime, public_key, PUBLIC_p and PUBLIC_gen is 128 bytes long
 
@@ -127,33 +128,43 @@ def gen_public(private_xi):
   return pow(PUBLIC_gen, private_xi, mod=PUBLIC_p)
 #END OF PUBLIC-PRIVATE KEPAIR GENERATION
 
-#SIGNATURE GENERATION
+#START OF UTILS FUNCTIONS
+def check_membership(number, order, p):
+  result = pow(number, order%p, mod=p)
+  if(result == 1):
+    return True
+  else:
+    print("check membership failed:",result)
+    return False
+#END OF UTILS FUNCTIONS
+
+#START OF SIGNATURE GENERATION
 #position from 1 to len+1
 def sign_message(private_key_num, issue_hash_bytes, message_bytes, pub_keys_bytes, position):
     h = hash_zero(issue_hash_bytes + pub_keys_bytes)
     sigma_i = pow(h, private_key_num, mod=PUBLIC_p)
     A0 = hash_one(issue_hash_bytes + pub_keys_bytes + message_bytes)
-    A1 = pow(text.getFractionModulo(sigma_i , A0), text.getFractionModulo(1,position), PUBLIC_p)
+    A1 = pow(utils.getFractionModulo(sigma_i , A0), utils.getFractionModulo(1,position), PUBLIC_p)
     pub_keys = decode_public_keys(pub_keys_bytes)
     signature_list = []
     for j in range(1, len(pub_keys) + 1):
         if(j == position):
-          signature_list.append(0)
+          signature_list.append(sigma_i)
           continue
         sigma_j = (A0 * (pow(A1, j, mod=PUBLIC_p))) % PUBLIC_p
         signature_list.append(sigma_j)
     randomw_i = gen_private()
     a_list = []
     b_list = []
-    cj_list =
-    zj_list = {}
+    cj_list = []
+    zj_list = []
     for j in range(1, len(pub_keys) + 1):
         if(j == position):
-          a_list.append(pow(PUBLIC_gen, randomw_i, mod=PUBLIC_p))
-          b_list.append(pow(h, randomw_i, mod=PUBLIC_p))
-          cj_list.append(0)
-          zj_list.append(0)
-          continue
+            a_list.append(pow(PUBLIC_gen, randomw_i, mod=PUBLIC_p))
+            b_list.append(pow(h, randomw_i, mod=PUBLIC_p))
+            cj_list.append(0)
+            zj_list.append(0)
+            continue
         z_j = gen_private()
         c_j = gen_private()
         cj_list.append(c_j)
@@ -166,7 +177,111 @@ def sign_message(private_key_num, issue_hash_bytes, message_bytes, pub_keys_byte
     sum_of_cj = 0
     for element in cj_list:
         sum_of_cj += element
-    cj_list[position-1] = (c_hash2 - (sum_of_cj)) % PUBLIC_order
-    zj_list[position-1] = (randomw_i - (cj_list[position-1] * private_key) % PUBLIC_order ) % PUBLIC_order
-    return (A1, cN, zN)
+    cj_list[(position-1)] = (c_hash2 - (sum_of_cj)) % PUBLIC_order
+    zj_list[(position-1)] = (randomw_i - (cj_list[position-1] * private_key_num) % PUBLIC_order ) % PUBLIC_order
+    return encode_signature((A1, cj_list, zj_list))
 #END OF SIGNATURE GENERATION
+#START OF SIGNATURE VERIFICATION
+def check_signature(signature_bytes, issue_hash_bytes, message_bytes, pub_keys_bytes):
+    (A1, cN, zN) = decode_signature(signature_bytes)
+    if not check_membership(A1, PUBLIC_order, PUBLIC_p):
+        print("A1 not of G")
+        return False
+    pub_keys = decode_public_keys(pub_keys_bytes)
+    for pub_key in pub_keys:
+        if not check_membership(pub_key, PUBLIC_order, PUBLIC_p):
+          print(pub_key, "public key not of G")
+          return False
+    for ci in cN:
+        if not (ci > 0 and ci < PUBLIC_order):
+            print(ci, "ci not of G")
+            print(cN)
+            return False
+    for zi in zN:
+        if not (zi > 0 and zi < PUBLIC_order):
+            print(zi, " zi not of G")
+            print(zN)
+            return False
+    h = hash_zero(issue_hash_bytes + pub_keys_bytes)
+    A0 = hash_one(issue_hash_bytes + pub_keys_bytes + message_bytes)
+    signature_list = []
+    for i in range(1, len(pub_keys)+1):
+        sig = (A0 * (pow(A1, i, mod=PUBLIC_p))) % PUBLIC_p
+        signature_list.append(sig)
+    a_list = []
+    b_list = []
+    for i in range(len(pub_keys)):
+        a1 = pow(PUBLIC_gen, zN[i], mod=PUBLIC_p)
+        a2 = pow(pub_keys[i], cN[i], mod=PUBLIC_p)
+        b1 = pow(h, zN[i], mod=PUBLIC_p)
+        b2 = pow(signature_list[i], cN[i], mod=PUBLIC_p)
+        a_list.append((a1*a2)%PUBLIC_p)
+        b_list.append((b1*b2)%PUBLIC_p)
+    c_hash2 = hash_two(issue_hash_bytes + pub_keys_bytes + A0.to_bytes(128, 'big') + A1.to_bytes(128, 'big') + encode_public_keys(a_list) + encode_public_keys(b_list))
+    sum_of_cN = 0
+    for element in cN:
+        sum_of_cN += element
+    if not (sum_of_cN % PUBLIC_order) == c_hash2:
+        print("sum not equal. Signature invalid")
+        return False
+    return True
+
+def trace_signatures(pub_keys_bytes, issue_hash_bytes, messages_bytes_array, signature_bytes_array):
+    h = hash_zero(issue_hash_bytes + pub_keys_bytes)
+    signatures = []
+    many_members = int.from_bytes(pub_keys_bytes[0:2], byteorder='big')
+    print("many members:", many_members)
+    many_signatures = len(signature_bytes_array)
+    for i in range(many_signatures):
+        (A1,_,_) = decode_signature(signature_bytes_array[i])
+        sigs = trace_get_sigs(messages_bytes_array[i], issue_hash_bytes + pub_keys_bytes, many_members, A1, h)
+        signatures.append(sigs)
+    many_duplicates = 0
+    impostor = None
+    for member_i in range(many_members):
+        column_sigs = []
+        for i in range(many_signatures):
+            column_sigs.append(signatures[i][member_i])
+        if len(column_sigs) != len(set(column_sigs)):
+            many_duplicates += 1
+            impostor = member_i
+    if many_duplicates == 1:
+        return (True, impostor)
+        #to get the public just pub_keys_bytes[impostor]
+    elif many_duplicates == many_members:
+        #the signature is identical
+        return (True, "linked")
+    else:
+        return (False, "indep")
+
+def trace_get_sigs(message_bytes, tag_bytes, many_members, A1, h):
+    A0 = hash_one(tag_bytes + message_bytes)
+    signature_list = []
+    for i in range(1, many_members+1):
+        sig = (A0 * (pow(A1, i, mod=PUBLIC_p))) % PUBLIC_p
+        signature_list.append(sig)
+    return signature_list
+#END OF SIGNATURE VERIFICATION
+
+
+public_key_list = [];
+
+our_private_key = gen_private()
+our_public_key = gen_public(our_private_key)
+public_key_list.append(our_public_key)
+
+for i in range(11):
+    private_key = gen_private()
+    public_key_list.append(gen_public(private_key))
+
+signature = sign_message(our_private_key, b"ttt", b"pasta", encode_public_keys(public_key_list), 1)
+print("finished signing")
+print(len(signature))
+
+check = check_signature(signature, b"ttt", b"pasta", encode_public_keys(public_key_list))
+
+print("check went", check)
+signature2 = sign_message(our_private_key, b"ttt", b"pastaa", encode_public_keys(public_key_list), 1)
+trace = trace_signatures(encode_public_keys(public_key_list), b"ttt", [b"pasta", b"pastaa"], [signature, signature2])
+
+print("trace went", trace)
