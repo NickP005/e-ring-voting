@@ -1,13 +1,13 @@
 # https://websockets.readthedocs.io/en/3.0/intro.html
 
 import asyncio
-from handlers import file, client, connections, server
-from mining import mining, block
-from exceptions import *
+from handlers import file, connections, server  # , client
+from mining import *  # import classes "Mining" and "Block" as set in mining/__init__.py
+# from exceptions import *
 
 
 async def my_super_loop():
-    #await client.check_connection_with("192.168.1.151")
+    # await client.check_connection_with("192.168.1.151")
     await asyncio.sleep(10)
     await connections.ask_for_friends()
 
@@ -20,11 +20,11 @@ async def start_all():
     print("starting websocket server..")
     await file.load_dict()
     await server.start()
-    asyncio.ensure_future(my_super_loop())
+    asyncio.ensure_future(my_super_loop())  # better to use create_task instead of ensure_future :/
     asyncio.ensure_future(file.write_json())
-    #asyncio.ensure_future(connections.ask_for_friends())
-    asyncio.ensure_future(mining.start_mining())
-    asyncio.ensure_future(block.init())
+    # asyncio.ensure_future(connections.ask_for_friends())
+    asyncio.ensure_future(Mining().init())
+    asyncio.ensure_future(Block().init())
 
 
 def main():

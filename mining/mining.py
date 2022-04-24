@@ -2,198 +2,157 @@ import asyncio
 import hashlib
 import random
 import time
-import itertools
 import psutil
 import threading
-import sys
 import multiprocessing
 from handlers.file import json_files
-from mining import hash, block
-from aiofile import async_open
-
-sys.tracebacklimit = 0
-
-block_to_mine = b""
-hash_to_mine = b"" #actually is the hash of the block that has to be mined
-#assigned transactions from a dedicated function which recovers not gone throught txs
-assigned_transactions = []
-# miner address will be taken by the settings
-miner_address = b""
-miner_address_hex = ""
-
-found_nonces = {} #block_hash: nonce|None
-do_mine = True #if False destroys the spaner() thread
-#returns False if it has completed the iterations and doesn't have a block
-# from is a random number from 0 to 2^64
-def mine(difficulty, hash_to_mine, iterations=100000):
-    start=random.randint(0, 2**61)
-    #difficulty = block_to_mine[64]
-    #print("difficulty", difficulty, " ", start)
-    #global hash_to_mine
-    #if len(hash_to_mine) != 32:
-    #    print("no hash to mine present")
-    #hash_to_mine = hashlib.sha256(block_to_mine).digest()
-    for _ in itertools.repeat(None, iterations):
-        start += 1 #7% impact!!
-        nonce = start.to_bytes(8, 'little')
-        #nonce = (lambda n:bytearray(map(random.getrandbits,(8,)*n)))(8)
-        #to_mine =
-        block_hash = hashlib.sha256(hash_to_mine + nonce).digest()
-        #print(block_hash)
-        if hash.hash_difficulty(block_hash) >= difficulty:
-            #print("FOUND BLOCK ----- with nonce ", (start ))
-            #print("block hash", block_hash)
-            #print("successfully found block", hash_to_mine + nonce)
-            #print( hash.hash_difficulty(block_hash))
-            return hash_to_mine + nonce
-    return False
+import hash
+from mining import Block
 
 
-async def start_mining():
-    #load mining information from settings
-    settings_file = json_files["data/settings.json"]
-    miner_address_hex = settings_file["miner_address"]
-    if len(miner_address_hex) != 64:
-        print("Cannot proceed to start mining: the miner address is incorrect len!=64")
-        return False
-    miner_address = bytes.fromhex(miner_address_hex)
-    #Now get how many cores we have. Minimum 2 for mining
-    many_cores = psutil.cpu_count()
-    print("cores:", many_cores)
-    if(many_cores < 2):
-        print("Cannot proceed to start mining: minimum cores requirement for mining is 2.")
-        return False
-    print("generating default block (just for testing!!)")
-    await generateBlockToMine() #await defaultBlock()
-    print(block_to_mine)
-    await asyncio.sleep(1)
-    try:
-        threading.Thread(target=spawner).start()
-    except KeyboardInterrupt:
-        return True
-    global do_mine
-    while(do_mine):
-        #here we update every 5 seconds the block to mine
-        await asyncio.sleep(5)
-        if(hash_to_mine.hex() in found_nonces):
-            nonce_bytes = found_nonces[hash_to_mine.hex()]
-            print("probably found a block!", len(nonce_bytes))
-            bhash = hashlib.sha256(hash_to_mine + nonce_bytes).digest()
-            print("recovered bhash", bhash.hex())
-            print("block hash",hash_to_mine.hex())
+class Mining:
+    block_to_mine = b""
+    hash_to_mine = b""  # actually is the hash of the block that has to be mined
+    assigned_transactions = []  # assigned transactions from a dedicated function which recovers not gone through txs
+    miner_address = b""  # miner address will be taken by the settings
+    miner_address_hex = ""
+    found_nonces = {}  # block_hash: nonce|None
+    do_mine = True  # if False destroys the spawner() thread
 
-            print("block to mine", block_to_mine)
-            final_block = block_to_mine + nonce_bytes
-            """
-            async with async_open(hash_to_mine.hex() + ".voteblock", 'wb') as json_file:
-                await json_file.write(final_block)"""
+    async def init(self):
+        settings_file = json_files["data/settings.json"]
 
-    #global do_mine
-    #do_mine = False #to stop the mining thread
+        miner_address_hex = settings_file["miner_address"]
+        if len(miner_address_hex) != 64:
+            print("Cannot proceed to start mining: the miner address is incorrect len!=64")
+            return False
 
-async def defaultBlock():
-    test_block = {}
-    test_block["pblockhash"] = hashlib.sha256("begula".encode()).hexdigest()
-    test_block["blocknum"] = 0
-    test_block["difficulty"] = 23
-    test_block["weight"] = 1
-    test_block["m_addr"] = hashlib.sha256("ghost".encode()).hexdigest()
-    test_block["transactions"] = []
-    test_block["epoch"] = 1639389055
-    test_block["nonce"] = 0
-    global block_to_mine
-    block_bytes = hash.from_json_to_bytes(test_block)
-    block_to_mine = block_bytes[:-8] #remove nonce for comodity
-    global hash_to_mine
-    if len(hash_to_mine) != 32:
-        print("no hash to mine present")
-        hash_to_mine = hashlib.sha256(block_to_mine).digest()
-        print("default block hash", hash_to_mine.hex())
+        # Now get how many cores we have. Minimum 2 for mining
+        cpu_count = psutil.cpu_count()
+        print("cores:", cpu_count)
+        if cpu_count < 2:
+            print("Cannot proceed to start mining: minimum cores requirement for mining is 2.")
+            return False
 
-async def generateBlockToMine():
-    block_cache = {}
-    #first of all get the latest block
-    while block.latest_block_hash == b"":
-        print("mining.py: waiting for tree map")
-        await asyncio.sleep(2)
-    block_cache["pblockhash"] = block.latest_block_hash.hex()
-    block_cache["blocknum"] = block.latest_block_number + 1
-    block_cache["difficulty"] = block.latest_block_difficulty
-    if block.median_time_blocks > 90:
-        block_cache["difficulty"] += -1
-    elif block.median_time_blocks < 30:
-        block_cache["difficulty"] += 1
-    block_cache["weight"] = block.latest_block_weight
-    block_cache["m_addr"] = json_files["data/settings.json"]["miner_address"]
+        await self.generate_block()  # await defaultBlock()
+        await asyncio.sleep(1)
 
-    #FOR NOW KEEP TRANSACTION THING NOT WORKING
-    #the transactions every time there is a block update get erased and checked again
-    block_cache["transactions"] = assigned_transactions
+        try:
+            threading.Thread(target=Multiprocessing).start()
+        except KeyboardInterrupt:
+            return True
 
-    print("block time", time.time())
-    block_cache["epoch"] = int(time.time())
-    block_cache["nonce"] = 0
-    global block_to_mine
-    block_bytes = hash.from_json_to_bytes(block_cache)
-    block_to_mine = block_bytes[:-8] #remove nonce for comodity
-    global hash_to_mine
-    hash_to_mine = hashlib.sha256(block_to_mine).digest()
-    print("generated block hash", hash_to_mine.hex())
+        while self.do_mine:
+            """update every 5 seconds the block to mine"""
+            await asyncio.sleep(5)
+            if self.hash_to_mine.hex() in self.found_nonces:
+                nonce_bytes = self.found_nonces[self.hash_to_mine.hex()]
+                print("probably found a block!", len(nonce_bytes))
+                bhash = hashlib.sha256(self.hash_to_mine + nonce_bytes).digest()
+                print("recovered bhash", bhash.hex())
+                print("block hash", self.hash_to_mine.hex())
+                print("block to mine", self.block_to_mine)
+                final_block = self.block_to_mine + nonce_bytes
+                print("final block", final_block)
+
+    async def generate_block(self):
+        # first get the latest block
+        while not Block.latest_block_hash:
+            print("mining.py: waiting for tree map")
+            await asyncio.sleep(2)
+        block_cache = {
+            "pblockhash": Block.latest_block_hash.hex(),
+            "blocknum": Block.latest_block_number + 1,
+            "difficulty": Block.latest_block_difficulty,
+            "weight": Block.latest_block_weight,
+            "m_addr": json_files["data/settings.json"]["miner_address"],
+            "transactions": self.assigned_transactions,  # not working: gets erased and checked again every block update
+            "epoch": int(time.time()),
+            "nonce": 0
+        }
+        print("block time", time.time())
+
+        if Block.median_time_blocks > 90:
+            block_cache["difficulty"] -= 1
+        elif Block.median_time_blocks < 30:
+            block_cache["difficulty"] += 1
+
+        block_bytes = hash.from_json_to_bytes(block_cache)
+        self.block_to_mine = block_bytes[:-8]  # remove nonce for commodity
+        self.hash_to_mine = hashlib.sha256(self.block_to_mine).digest()
+        print("generated block hash", self.hash_to_mine.hex())
+
+    async def default_block(self):
+        test_block = {
+            "pblockhash": hashlib.sha256("begula".encode()).hexdigest(),
+            "blocknum": 0,
+            "difficulty": 23,
+            "weight": 1,
+            "m_addr": hashlib.sha256("ghost".encode()).hexdigest(),
+            "transactions": [],
+            "epoch": 1639389055,
+            "nonce": 0
+        }
+        block_bytes = hash.from_json_to_bytes(test_block)
+        self.block_to_mine = block_bytes[:-8]  # remove nonce for commodity
+        if len(self.hash_to_mine) != 32:
+            print("no hash to mine present")
+            self.hash_to_mine = hashlib.sha256(self.block_to_mine).digest()
+            print("default block hash", self.hash_to_mine.hex())
 
 
-def spawner():
-    try:
-        global do_mine
-        print("spawner ", hash_to_mine)
-        difficulty = block_to_mine[64]
-        while(do_mine):
-            manager = multiprocessing.Manager()
-            return_dict = manager.dict()
-            workers = []
-            for i in range(psutil.cpu_count() - 1):
-                p = multiprocessing.Process(target=worker, args=(i, return_dict, hash_to_mine, difficulty))
-                workers.append(p)
-                p.start()
-            for proc in workers:
-                proc.join()
-            for proc in workers:
-                proc.terminate()
-            found_block = False
-            block_found = b""
-            for result in return_dict.values():
-                if result is False:
-                    do_mine = False
+class Multiprocessing:
+    def __init__(self, hash_to_mine):
+        self.hash_to_mine = hash_to_mine
+        try:
+            print("spawner ", hash_to_mine)
+            self.difficulty = Mining.block_to_mine[64]
+            while Mining.do_mine:
+                manager = multiprocessing.Manager()
+                return_dict = manager.dict()
+                processes = []
+                for i in range(psutil.cpu_count() - 1):
+                    p = multiprocessing.Process(target=self.process, args=(i, return_dict))
+                    processes.append(p)
+                    p.start()
+                for proc in processes:
+                    proc.join()
+                for proc in processes:  # ???
+                    proc.terminate()
+                for block_found in return_dict.values():
+                    if not block_found:
+                        Mining.do_mine = False
+                        break
+                    print("FOUND BLOCK HASH ", block_found)
+                    Mining.found_nonces[hash_to_mine.hex()] = block_found[-8:]
+                    print("FOUND NONCE ", Mining.found_nonces[hash_to_mine.hex()])
                     break
-                if result is not None:
-                    found_block = True
-                    block_found = result
-                    break
-            if(found_block):
-                print("FOUND BLOCK HASH ", block_found)
-                #print("len of found hash", len(block_found))
-                found_nonces[hash_to_mine.hex()] = block_found[-8:]
-                print("FOUND NONCE ", found_nonces[hash_to_mine.hex()])
-            #print(return_dict)
-        print("spawner() process stopped")
-    except KeyboardInterrupt:
-        print("keyboard interrupt spawner()")
-        do_mine = False
-        return True
+                # print(return_dict)
+            print("spawner() process stopped")
+        except KeyboardInterrupt:
+            print("keyboard interrupt spawner()")
+            Mining.do_mine = False
 
-# https://www.youtube.com/watch?v=GK2GUxOnjDQ
-def worker(procnum, return_dict, hash_to_mine, difficulty):
-    try:
-        result = mine(difficulty, hash_to_mine)
-        if(result == False):
-            return_dict[procnum] = None
-        else:
-            return_dict[procnum] = result
-    except KeyboardInterrupt:
-        return_dict[procnum] = False
-        print ("Keyboard interrupt in process: ", procnum)
-        return
+    def process(self, proc_num, return_dict):
+        try:
+            result = self.mine()
+            if not result:
+                return_dict[proc_num] = None
+            else:
+                return_dict[proc_num] = result
+        except KeyboardInterrupt:
+            return_dict[proc_num] = False
+            print("Keyboard interrupt in process: ", proc_num)
+            return
 
-
+    def mine(self, iterations=100000):
+        start = random.randint(0, 2 ** 61)
+        for i in range(start, start + iterations):
+            nonce = i.to_bytes(8, 'little')
+            block_hash = hashlib.sha256(self.hash_to_mine + nonce).digest()
+            if hash.hash_difficulty(block_hash) >= self.difficulty:
+                return self.hash_to_mine + nonce
+        return False
 
 
 """
